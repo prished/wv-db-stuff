@@ -26,7 +26,7 @@ const Sync = (() => {
   let serverOffsetMs = 0;
   let connected = false;
   let refs = {};
-  let listeners = { roster: null, event: null, presence: null, connection: null };
+  let listeners = { roster: null, event: null, presence: null, connection: null, sessions: null };
 
   function init() {
     if (ready) return true;
@@ -143,16 +143,67 @@ const Sync = (() => {
 
   function leaveSession() {
     Object.entries(listeners).forEach(([k, off]) => {
-      if (k === "connection" || !off) return;
+      if (k === "connection" || k === "sessions" || !off) return;
       db && db.ref("sessions/" + sessionCode + "/" + k).off("value", off);
     });
     sessionCode = null;
     refs = {};
   }
 
+  /* ---------- club-wide session library (shared across all phones) ----------
+     Everything the whole club should see the same way — the list of sessions,
+     each session's roster and shifts and results — lives under one shared key
+     so every phone that opens the app sees identical data. This is separate
+     from the per-session live "events" feed used during an active race. */
+  const CLUB_KEY = "club/vipers/sessions";
+
+  function watchAllSessions(cb) {
+    if (!init()) return false;
+    const ref = db.ref(CLUB_KEY);
+    listeners.sessions = ref.on("value", (snap) => {
+      const val = snap.val() || {};
+      const arr = Object.keys(val).map((id) => hydrate(id, val[id]));
+      cb(arr);
+    });
+    return true;
+  }
+
+  function hydrate(id, s) {
+    return {
+      id,
+      name: s.name, date: s.date, distance: s.distance,
+      status: s.status || "draft",
+      paddlers: s.paddlers ? Object.values(s.paddlers) : [],
+      shifts: s.shifts || {},
+      updatedAt: s.updatedAt || 0
+    };
+  }
+
+  function serialize(s) {
+    return {
+      name: s.name, date: s.date, distance: s.distance, status: s.status,
+      paddlers: (s.paddlers || []).reduce((acc, p) => { acc["p" + p.id] = p; return acc; }, {}),
+      shifts: s.shifts || {},
+      updatedAt: now()
+    };
+  }
+
+  function saveSession(s) {
+    if (!init()) return Promise.resolve(false);
+    return db.ref(CLUB_KEY + "/" + s.id).set(serialize(s))
+      .then(() => true).catch((e) => { console.error("[sync] saveSession failed:", e); return false; });
+  }
+
+  function deleteSessionRemote(id) {
+    if (!init()) return Promise.resolve(false);
+    return db.ref(CLUB_KEY + "/" + id).remove()
+      .then(() => true).catch((e) => { console.error("[sync] deleteSession failed:", e); return false; });
+  }
+
   return {
     init, createSession, joinSession, watchPresence, watchRoster, pushRosterUpdate,
     pushStart, pushFinish, pushCancelStart, pushCancelFinish, watchEvents, leaveSession,
+    watchAllSessions, saveSession, deleteSessionRemote,
     get code() { return sessionCode; },
     get isConnected() { return connected; },
     get isReady() { return ready; },
