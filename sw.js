@@ -3,7 +3,7 @@
    been loaded once. Bump CACHE_VERSION whenever you change index.html or icons
    so phones pick up the new version on their next online launch. */
 
-const CACHE_VERSION = "wv-oc-timer-v8";
+const CACHE_VERSION = "wv-oc-timer-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
