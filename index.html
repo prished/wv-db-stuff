@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>Water Vipers OC Timer</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="icon" href="icons/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="WV OC">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sync.js"></script>
+<style>
+  :root{
+    --paper:#F5F5F5; --card:#fff; --ink:#0A0A0A; --ink-soft:#66666A; --line:#E0E0E0;
+    --teal:#0A0A0A; --teal-soft:#EDEDED; --orange:#D91E2B; --orange-soft:#FBE4E5;
+    --masters:#0A0A0A; --masters-soft:#EDEDED; --perf:#D91E2B; --perf-soft:#FBE4E5;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --cond:'Barlow Condensed','Arial Narrow',sans-serif;
+    --body:'Barlow',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{background:#000;font-family:var(--body);display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px 10px}
+  button{font-family:inherit;cursor:pointer}
+  button:active{filter:brightness(.93)}
+  input,textarea{font-family:inherit}
+  input:focus,textarea:focus,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+  ::-webkit-scrollbar{width:0;height:0}
+
+  .phone{width:392px;height:820px;max-height:96vh;background:var(--paper);border-radius:36px;overflow:hidden;
+    display:flex;flex-direction:column;border:8px solid #0B1418;box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative}
+  @media(max-width:430px){body{padding:0}.phone{width:100%;height:100vh;height:100dvh;max-height:none;border:none;border-radius:0}}
+
+  /* header */
+  .hdr{background:var(--teal);color:#fff;padding:14px 18px 12px}
+  .hdr-top{display:flex;justify-content:space-between;align-items:baseline}
+  .hdr-title{font-family:var(--cond);font-weight:700;font-size:20px;letter-spacing:.06em;text-transform:uppercase}
+  .hdr-clock{font-family:var(--mono);font-size:14px;font-weight:600}
+  .hdr-sub{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+  .hdr-role{font-family:var(--cond);font-size:13px;letter-spacing:.1em;opacity:.85;text-transform:uppercase}
+  .sync{display:flex;align-items:center;gap:6px;font-family:var(--cond);font-size:12px;letter-spacing:.1em;text-transform:uppercase;opacity:.9}
+  .dot{width:7px;height:7px;border-radius:99px;background:#7CE38B;animation:pulse 2s infinite}
+  .dot.warn{background:#F5C842}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .review-strip{background:#F5C842;color:#3D2A05;padding:5px 18px;font-family:var(--cond);font-weight:700;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+  .review-strip button{background:none;border:none;color:#3D2A05;text-decoration:underline;font-family:inherit;font-weight:700;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase}
+
+  .body{flex:1;overflow-y:auto;position:relative}
+  .pad{padding:16px 16px 24px}
+
+  .label{font-family:var(--cond);font-weight:600;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--ink-soft)}
+
+  .chip{font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.08em;padding:2px 7px;border-radius:4px;white-space:nowrap}
+  .chip.M{background:#fff;color:#0A0A0A;border:1px solid #0A0A0A}.chip.F{background:#fff;color:#D91E2B;border:1px solid #D91E2B}
+  .chip.Masters{background:var(--masters-soft);color:var(--masters)}
+  .chip.Performance{background:var(--perf-soft);color:var(--perf)}
+
+  .searchbox{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:11px 13px}
+  .searchbox input{flex:1;border:none;outline:none;font-size:15px;background:transparent;color:var(--ink)}
+  .searchbox .clr{background:none;border:none;color:var(--ink-soft);display:flex;padding:0}
+
+  .list{background:var(--card);border-radius:14px;border:1.5px solid var(--line);overflow:hidden}
+  .row{display:flex;width:100%;align-items:center;gap:10px;padding:12px 14px;background:none;border:none;border-top:1px solid var(--line);text-align:left;border-left:4px solid transparent}
+  .row:first-child{border-top:none}
+  .row .sched{font-family:var(--mono);font-size:12px;color:var(--ink-soft);width:40px;flex-shrink:0}
+  .row .nm{font-weight:600;font-size:15px;color:var(--ink)}
+  .row .note{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .row.armed{background:var(--orange-soft);border-left-color:var(--orange)}
+  .grow{flex:1;min-width:0}
+
+  /* shift-change marker — inline between paddler rows */
+  .shift{border-top:1px solid var(--line);background:linear-gradient(#F7FAF9,#EEF3F2);padding:10px 14px 10px 14px;position:relative}
+  .shift:first-child{border-top:none}
+  .shift-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .shift-head .glyph{width:20px;height:20px;border-radius:99px;background:var(--teal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+  .shift-head .t{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)}
+  .shift-body{padding-left:28px;font-size:12.5px;color:var(--ink);line-height:1.5}
+  .shift-body .role{color:var(--ink-soft);font-family:var(--cond);font-weight:600;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+  .shift-body .swap{font-weight:600}
+  .shift-body .swap .arw{color:var(--ink-soft);margin:0 4px}
+
+  .btn-ghost{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line);border-radius:10px;
+    padding:10px 14px;font-family:var(--cond);font-weight:700;font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal)}
+  .btn-solid{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--teal);color:#fff;border:none;border-radius:12px;
+    padding:15px 0;width:100%;font-family:var(--cond);font-weight:700;font-size:17px;letter-spacing:.12em;text-transform:uppercase}
+  .btn-solid:disabled{background:#C9D4D1;cursor:default}
+
+  /* start slab */
+  .slabwrap{position:absolute;left:0;right:0;bottom:0;padding:14px;background:linear-gradient(transparent,rgba(239,243,241,.96) 30%)}
+  .slab{width:100%;padding:18px 16px;border-radius:16px;border:none;background:#C9D4D1;color:#fff;transition:background .15s}
+  .slab.on{background:var(--orange);box-shadow:0 10px 26px rgba(232,89,12,.4)}
+  .slab .k{font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.22em;text-transform:uppercase;opacity:.9}
+  .slab .n{font-family:var(--cond);font-weight:700;font-size:30px;text-transform:uppercase;letter-spacing:.03em}
+  .slab .t{font-family:var(--mono);font-size:15px;opacity:.9;margin-left:12px}
+
+  /* finish cards */
+  .wcard{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px 14px 16px;margin-bottom:12px;position:relative}
+  .wclock{font-family:var(--mono);font-weight:600;font-size:40px;color:var(--ink);margin:6px 0 10px;font-variant-numeric:tabular-nums}
+  .cancel-x{position:absolute;top:12px;right:12px;background:none;border:none;color:#C7C7C7;padding:4px;display:flex}
+  .cancel-x:hover{color:var(--ink-soft)}
+  .btn-finish{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:var(--orange);color:#fff;border:none;border-radius:14px;padding:16px 0;
+    font-family:var(--cond);font-weight:700;font-size:19px;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 8px 20px rgba(217,30,43,.35)}
+
+  /* results */
+  .fchip{padding:7px 13px;border-radius:99px;border:1.5px solid var(--line);background:#fff;color:var(--ink-soft);
+    font-family:var(--cond);font-weight:700;font-size:13px;letter-spacing:.08em;text-transform:uppercase}
+  .fchip.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .rtime{font-family:var(--mono);font-weight:600;font-size:17px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .rank{font-family:var(--cond);font-weight:700;font-size:15px;color:#AFC0C4;width:24px;flex-shrink:0}
+  .rank.top{color:var(--orange)}
+  .rerun{background:none;border:none;color:#AFC0C4;font-size:11px;padding:0;margin-top:2px}
+
+  /* session tab (coordinator's admin panel) */
+  .sess-card{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+  .sess-card.hero{background:var(--teal);color:#fff;border-color:var(--teal)}
+  .sess-card.hero .k{opacity:.8}
+  .sess-name{font-family:var(--cond);font-weight:700;font-size:20px;letter-spacing:.04em;text-transform:uppercase;line-height:1.15}
+  .sess-meta{font-size:12.5px;margin-top:2px;color:var(--ink-soft)}
+  .sess-card.hero .sess-meta{color:rgba(255,255,255,.85)}
+  .sess-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .sess-actions button{flex:1;min-width:0}
+  .sess-card.hero .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.35)}
+  .sess-row{display:flex;align-items:center;gap:12px;padding:11px 14px;background:none;border:none;border-top:1px solid var(--line);text-align:left;width:100%}
+  .sess-row:first-child{border-top:none}
+  .sess-row .dt{font-family:var(--mono);font-size:13px;color:var(--ink);flex-shrink:0}
+  .sess-row .name{font-weight:600;font-size:14.5px;color:var(--ink)}
+  .sess-row .sub{font-size:12px;color:var(--ink-soft);margin-top:1px}
+  .sess-row .chev{color:#AFC0C4}
+
+  /* nav */
+  .nav{display:flex;border-top:1.5px solid var(--line);background:#fff;padding-bottom:6px}
+  .nav button{flex:1;background:none;border:none;padding:10px 0 6px;color:#93A6AB;position:relative}
+  .nav button.on{color:var(--teal)}
+  .nav .nlbl{font-family:var(--cond);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
+  .nav svg{display:block;margin:0 auto}
+  .badge{position:absolute;top:4px;right:26%;background:var(--orange);color:#fff;font-family:var(--mono);font-size:10px;font-weight:600;border-radius:99px;padding:1px 5px}
+
+  /* sheets */
+  .overlay{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;justify-content:flex-end}
+  .scrim{position:absolute;inset:0;background:rgba(16,38,46,.45)}
+  .sheet{position:relative;background:#fff;border-radius:22px 22px 0 0;padding:18px 18px 22px;max-height:88%;overflow-y:auto}
+  .sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .sheet-t{font-family:var(--cond);font-weight:700;font-size:20px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink)}
+  .sheet .x{background:var(--paper);border:none;border-radius:99px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--ink-soft)}
+  .field{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:11px 12px;font-size:15px;background:var(--paper);margin-bottom:14px}
+  textarea.field{resize:none;font-size:14px}
+  .seg{display:flex;border:1.5px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:14px}
+  .seg button{flex:1;padding:10px 0;border:none;background:#fff;color:var(--ink-soft);
+    font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
+  .seg button.on{background:var(--teal);color:#fff}
+
+  .toast{position:absolute;bottom:92px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;
+    font-family:var(--mono);font-size:13px;white-space:nowrap;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.35);animation:toastIn .18s ease}
+  @keyframes toastIn{from{transform:translate(-50%,12px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+
+  .empty{padding:26px 20px;text-align:center;font-size:13.5px;color:var(--ink-soft);line-height:1.6}
+  .empty.tall{padding:70px 24px}
+
+  /* launch / sync */
+  .launch{position:absolute;inset:0;z-index:100;background:var(--teal);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:32px 26px;text-align:center;overflow-y:auto}
+  .launch h1{font-family:var(--cond);font-weight:700;font-size:38px;letter-spacing:.04em;text-transform:uppercase;margin:0 0 4px}
+  .launch .sub{font-family:var(--cond);font-size:15px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-bottom:36px}
+  .rolebtn{width:100%;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.35);color:#fff;border-radius:14px;padding:18px;margin-bottom:12px;text-align:left}
+  .rolebtn .rt{font-family:var(--cond);font-weight:700;font-size:20px;letter-spacing:.08em;text-transform:uppercase}
+  .rolebtn .rd{font-size:13px;opacity:.8;margin-top:3px}
+  .syncbig{font-family:var(--mono);font-size:40px;font-weight:600;margin:6px 0 22px;font-variant-numeric:tabular-nums}
+  .syncbtn{width:100%;background:var(--orange);border:none;color:#fff;border-radius:14px;padding:17px;
+    font-family:var(--cond);font-weight:700;font-size:18px;letter-spacing:.14em;text-transform:uppercase}
+  .syncbtn:disabled{background:rgba(255,255,255,.18);cursor:default}
+  .backlink{background:none;border:none;color:rgba(255,255,255,.7);margin-top:20px;font-size:13px;text-decoration:underline}
+  .checklist{text-align:left;margin:0 auto 20px;max-width:300px;min-height:132px}
+  .ck{display:flex;align-items:center;gap:10px;font-size:14.5px;padding:7px 0;opacity:0;transition:opacity .3s}
+  .ck.show{opacity:1}
+  .ck .ic{width:22px;height:22px;border-radius:99px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    font-size:13px;background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.35)}
+  .ck.ok .ic{background:#7CE38B;border-color:#7CE38B;color:#0B3A2A}
+  .ck.wait .ic{animation:pulse 1.2s infinite}
+  .rostercard{background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.3);border-radius:12px;
+    padding:13px 15px;margin-bottom:14px;display:flex;align-items:center;gap:10px;text-align:left}
+  .rostercard .fn{font-family:var(--mono);font-size:12.5px;flex:1}
+  .rostercard .ct{font-family:var(--cond);font-weight:700;font-size:12px;letter-spacing:.08em}
+
+  /* CSV preview inside a sheet */
+  .csv-preview{background:var(--ink);color:#DDEBEA;font-family:var(--mono);font-size:11px;line-height:1.55;padding:12px;border-radius:8px;max-height:290px;overflow:auto;white-space:pre;margin-bottom:14px}
+
+  /* shifts editor */
+  .shift-editor .role-block{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;background:var(--paper)}
+  .shift-editor .rl-h{font-family:var(--cond);font-weight:700;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:var(--teal);margin-bottom:6px}
+  .shift-editor .sh-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+  .shift-editor .sh-row .t{font-family:var(--mono);font-size:12.5px;width:52px;color:var(--ink)}
+  .shift-editor .sh-row .nm{flex:1;font-size:13.5px;color:var(--ink)}
+  .shift-editor .sh-row .rm{background:none;border:none;color:#AFC0C4;padding:2px 4px}
+  .shift-editor .addsh{background:none;border:1.5px dashed var(--line);color:var(--teal);border-radius:8px;padding:7px 10px;font-family:var(--cond);font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <!-- ============ LAUNCH: role picker → coordinator OR volunteer path ============ -->
+  <div class="launch" id="launch">
+    <div id="launch-role">
+      <h1>Water Vipers OC Timer</h1>
+      <div class="sub">Less is More</div>
+      <button class="rolebtn" onclick="pickRole('coordinator')">
+        <div class="rt">☰ &nbsp;Coordinator</div>
+        <div class="rd">Manage sessions, run the morning sync, export results</div>
+      </button>
+      <button class="rolebtn" onclick="pickRole('start')">
+        <div class="rt">▶ &nbsp;Start line phone</div>
+        <div class="rd">Call paddlers up and tap START</div>
+      </button>
+      <button class="rolebtn" onclick="pickRole('finish')">
+        <div class="rt">⚑ &nbsp;Finish line phone</div>
+        <div class="rd">Watch the buoy and tap FINISH</div>
+      </button>
+    </div>
+
+    <!-- coordinator hosts the morning sync -->
+    <div id="launch-host" style="display:none">
+      <div class="sub" style="margin-bottom:6px">Morning sync</div>
+      <h1 style="font-size:24px" id="host-title">Gather the phones</h1>
+      <div style="font-size:14px;opacity:.85;margin:0 auto 18px;max-width:300px">Roster and clocks will be sent to every phone connected to this session.</div>
+      <div class="rostercard">
+        <div class="fn" id="host-file">roster.csv</div>
+        <div class="ct" id="host-count">— PADDLERS</div>
+      </div>
+      <div id="host-code-wrap" style="display:none;text-align:center;margin:4px 0 16px">
+        <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.7">Tell your Start and Finish phones</div>
+        <div id="host-code" style="font-family:var(--mono);font-weight:600;font-size:40px;letter-spacing:.1em;color:var(--orange);margin-top:2px">····</div>
+      </div>
+      <div class="checklist" id="host-list">
+        <div class="ck" id="hk1"><span class="ic">1</span><span>Start line phone joined</span></div>
+        <div class="ck" id="hk2"><span class="ic">2</span><span>Finish line phone joined</span></div>
+        <div class="ck" id="hk3"><span class="ic">3</span><span>Clocks matched · <span id="hk3off">…</span></span></div>
+        <div class="ck" id="hk4"><span class="ic">4</span><span>Roster sent · <span id="hk4n">—</span> paddlers</span></div>
+      </div>
+      <button class="syncbtn" id="host-btn" onclick="hostSync()">Start morning sync</button>
+      <button class="backlink" onclick="backToRoles()">Back</button>
+    </div>
+
+    <!-- start/finish waits for coordinator -->
+    <div id="launch-join" style="display:none">
+      <div class="sub" style="margin-bottom:6px">Morning sync</div>
+      <h1 style="font-size:26px" id="join-title">Enter the session code</h1>
+      <input id="join-code" inputmode="numeric" maxlength="4" placeholder="0000"
+        style="font-family:var(--mono);font-weight:600;font-size:36px;letter-spacing:.2em;text-align:center;
+        width:180px;margin:6px auto 4px;display:block;padding:12px 0;border-radius:12px;border:2px solid rgba(255,255,255,.3);
+        background:rgba(255,255,255,.06);color:#fff">
+      <div style="font-size:14px;opacity:.85;margin:8px auto 18px;max-width:300px">Ask the coordinator for the 4-digit code shown on their screen.</div>
+      <div class="checklist" style="min-height:99px" id="join-list">
+        <div class="ck" id="jk1"><span class="ic">1</span><span>Coordinator found</span></div>
+        <div class="ck" id="jk2"><span class="ic">2</span><span>Clock matched · <span id="jk2off">…</span></span></div>
+        <div class="ck" id="jk3"><span class="ic">3</span><span>Roster received · <span id="jk3n">—</span> paddlers</span></div>
+      </div>
+      <button class="syncbtn" id="join-btn" onclick="joinSync()">Join morning sync</button>
+      <button class="backlink" onclick="backToRoles()">Back</button>
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div class="hdr">
+    <div class="hdr-top">
+      <div class="hdr-title">Water Vipers OC Timer</div>
+      <div class="hdr-clock" id="hdr-clock"></div>
+    </div>
+    <div class="hdr-sub">
+      <div class="hdr-role" id="hdr-role">Less is More</div>
+      <button class="sync" id="sync-tap" onclick="demoToggleConn()" style="background:none;border:none;padding:0;cursor:pointer"><span class="dot" id="hdr-dot"></span><span id="hdr-sync">Offline · clock synced</span></button>
+    </div>
+  </div>
+
+  <div id="review-strip" style="display:none" class="review-strip">
+    <span>Review mode · read-only</span>
+    <button onclick="exitReview()">Back to today</button>
+  </div>
+
+  <div class="body" id="body"></div>
+
+  <div class="nav" id="nav"></div>
+
+  <div id="sheet-root"></div>
+  <div id="toast-root"></div>
+</div>
+
+<script>
+/* ================= data ================= */
+let _id = 100;
+const nid = () => ++_id;
+
+/* Volunteer shifts: for each role, an ordered list of {startsAt, names}.
+   The first entry's startsAt is when the role coverage begins. */
+const SHIFTS_MAY30 = {
+  "Start line": [
+    {startsAt:"8:15", names:["Kelly","Melissa","Phil"]},
+    {startsAt:"9:10", names:["Gordon","Sarah","Phil"]},
+  ],
+  "Finish line": [
+    {startsAt:"8:15", names:["Carmina","Serene","Chantel"]},
+    {startsAt:"8:35", names:["Carmina","Serene","Gordon W"]},
+  ],
+  "Video": [
+    {startsAt:"8:15", names:["Katie","Garreth"]},
+  ],
+  "Marshall": [
+    {startsAt:"8:15", names:["Gregory"]},
+  ],
+};
+
+const ROSTER_MAY30 = [
+  ["8:15","Darren Cross","M","Performance","Needs early slot"],
+  ["8:16","Napier Tambong","M","Performance",""],
+  ["8:17","Kevin Chan","M","Performance",""],
+  ["8:18","Hollis","M","Performance",""],
+  ["8:20","Frank Qi","M","Performance","Huli last test"],
+  ["8:21","Nick","M","Performance",""],
+  ["8:22","Jake Mendoza","M","Performance",""],
+  ["8:23","Jerry Pau","M","Performance",""],
+  ["8:25","Darren Ko","M","Performance",""],
+  ["8:26","Jerry Li","M","Performance",""],
+  ["8:27","Kim","M","Performance",""],
+  ["8:28","Jeff Kwok","M","Masters",""],
+  ["8:30","Mark","M","Masters",""],
+  ["8:31","Rocky Yim","M","Masters","06 Volks steering off"],
+  ["8:32","Son Duong","M","Masters",""],
+  ["8:33","Joshua Yu","M","Masters",""],
+  ["8:35","Eddy Fung","M","Masters",""],
+  ["8:36","Jenny Cowley","F","Masters","Needs early slot"],
+  ["8:37","Kat English","F","Masters",""],
+  ["8:38","Isabella Dolezel","F","Masters",""],
+  ["8:40","Prish","F","Performance",""],
+  ["8:41","Roseanna","F","Performance",""],
+  ["8:42","Joanne H","F","Performance",""],
+  ["8:43","Elena","F","Performance",""],
+  ["8:45","Bettina","F","Performance",""],
+  ["8:46","Amy Li","F","Performance",""],
+  ["8:47","Ann Jiao","F","Performance",""],
+  ["8:50","Cheryl Chan","F","Performance",""],
+  ["8:52","Andrea","F","Masters",""],
+  ["8:53","Chantel","F","Masters",""],
+  ["9:10","Chika","F","Masters",""],
+  ["9:12","Elaine","F","Masters",""],
+].map((r,i)=>({id:i+1,sched:r[0],name:r[1],gender:r[2],team:r[3],notes:r[4],status:"queued",startTs:null,finishTs:null}));
+
+/* Past sessions — some pre-completed with fake results for review mode. */
+function seedFinishedRoster(baseNames, distance){
+  return baseNames.map((r,i)=>{
+    const [sched,name,g,t,notes]=r;
+    const startTs = 1000; // placeholder — review mode doesn't tick
+    const finishTs = startTs + 100000 + Math.floor(Math.random()*80000);
+    return {id:i+1,sched,name,gender:g,team:t,notes:notes||"",status:"done",startTs,finishTs};
+  });
+}
+
+const SESSIONS = [
+  {
+    id:"today",
+    name:"OC Test May 30 2026",
+    date:"2026-05-30",
+    distance:"330 m",
+    status:"draft",           // draft = needs sync ; active = in-progress ; complete = archived
+    paddlers:ROSTER_MAY30,
+    shifts:SHIFTS_MAY30,
+  },
+  {
+    id:"apr18",
+    name:"OC Test Apr 18 2026",
+    date:"2026-04-18",
+    distance:"330 m",
+    status:"complete",
+    paddlers:seedFinishedRoster(ROSTER_MAY30.slice(0,22).map(p=>[p.sched,p.name,p.gender,p.team,p.notes])),
+    shifts:{
+      "Start line":[{startsAt:"8:15",names:["Melissa","Phil","Kelly"]}],
+      "Finish line":[{startsAt:"8:15",names:["Carmina","Chantel","Gordon W"]}],
+      "Video":[{startsAt:"8:15",names:["Katie"]}],
+      "Marshall":[{startsAt:"8:15",names:["Gregory"]}],
+    },
+  },
+  {
+    id:"mar21",
+    name:"OC Test Mar 21 2026",
+    date:"2026-03-21",
+    distance:"330 m",
+    status:"complete",
+    paddlers:seedFinishedRoster(ROSTER_MAY30.slice(0,19).map(p=>[p.sched,p.name,p.gender,p.team,p.notes])),
+    shifts:{
+      "Start line":[{startsAt:"8:15",names:["Kelly","Melissa"]}],
+      "Finish line":[{startsAt:"8:15",names:["Serene","Chantel"]}],
+      "Video":[{startsAt:"8:15",names:["Katie","Garreth"]}],
+      "Marshall":[{startsAt:"8:15",names:["Phil"]}],
+    },
+  },
+];
+
+const state = {
+  sessions: SESSIONS,
+  currentSessionId: "today",
+  reviewSessionId: null,      // if set, we're viewing a past session read-only
+  role: "coordinator",         // coordinator | start | finish
+  tab: "session",              // roster | start | finish | results | session
+  armed: null, filter: "All",
+  qRoster: "", qStart: "", qFinish: "",
+  lastFinish: null,
+  sessionCode: null, liveConnected: false,
+};
+
+/* ================= helpers ================= */
+const $ = (s)=>document.querySelector(s);
+const pad=(n,w=2)=>String(n).padStart(w,"0");
+const esc=(s)=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function fmtElapsed(ms){ if(ms==null) return "--:--.---";
+  const m=Math.floor(ms/60000), s=Math.floor(ms%60000/1000), mm=Math.floor(ms%1000);
+  return m+":"+pad(s)+"."+pad(mm,3); }
+function fmtClock(ts){ const d=new Date(ts); return (d.getHours()%12||12)+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
+function fmtClockMs(ts){ const d=new Date(ts); return fmtClock(ts)+"."+pad(d.getMilliseconds(),3); }
+const chips=(p)=>`<span class="chip ${p.gender}">${p.gender}</span><span class="chip ${p.team}">${p.team==="Performance"?"PERF":"MASTERS"}</span>`;
+function minutesFromSched(t){ // "8:15" -> 495
+  if(!t) return null;
+  const [h,m]=t.split(":").map(Number); return h*60+m;
+}
+function fmtDate(iso){ // "2026-05-30" -> "May 30"
+  const [y,mo,d]=iso.split("-").map(Number);
+  return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mo-1]+" "+d;
+}
+function fmtDateFull(iso){
+  const [y,mo,d]=iso.split("-").map(Number);
+  const dow=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(y,mo-1,d).getDay()];
+  return dow+", "+fmtDate(iso)+" "+y;
+}
+
+/* current session helpers */
+function currentSession(){ const id=state.reviewSessionId||state.currentSessionId; return state.sessions.find(s=>s.id===id); }
+function isReview(){ return !!state.reviewSessionId; }
+const paddlersOf = ()=>currentSession().paddlers;
+const shiftsOf = ()=>currentSession().shifts;
+
+const ICONS={
+  users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  play:'<polygon points="6 3 20 12 6 21 6 3"/>',
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+  list:'<line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  x:'<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  rotate:'<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  chev:'<polyline points="9 18 15 12 9 6"/>',
+  swap:'<polyline points="17 3 21 7 17 11"/><line x1="21" y1="7" x2="9" y2="7"/><polyline points="7 21 3 17 7 13"/><line x1="15" y1="17" x2="3" y2="17"/>',
+};
+const icon=(n,s=22,w=2)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${ICONS[n]}</svg>`;
+
+/* ================= launch / sync ================= */
+function pickRole(role){
+  state.role=role;
+  $("#launch-role").style.display="none";
+  if(role==="coordinator"){
+    // coordinator lands directly on Sessions Home in the app (no forced sync yet).
+    state.tab="session";
+    updateHeader();
+    enterApp();
+    return;
+  }
+  $("#launch-join").style.display="block";
+  $("#join-title").textContent = role==="start" ? "Start line phone" : "Finish line phone";
+  ["jk1","jk2","jk3"].forEach(id=>{const el=$("#"+id);el.classList.remove("ok","wait");el.classList.add("show");
+    const ic=el.querySelector(".ic"); if(ic) ic.textContent=id.slice(-1);});
+  $("#jk3n").textContent="—"; $("#jk2off").textContent="…";
+  state.tab = role==="start" ? "start" : "finish";
+  updateHeader();
+}
+function backToRoles(){
+  $("#launch-host").style.display="none";
+  $("#launch-join").style.display="none";
+  $("#launch-role").style.display="block";
+}
+function step(id,delay,offEl,off){
+  setTimeout(()=>{
+    const el=$("#"+id); if(!el) return;
+    el.classList.remove("wait"); el.classList.add("ok");
+    el.querySelector(".ic").textContent="✓";
+    if(offEl && $("#"+offEl)) $("#"+offEl).textContent=off;
+    const next=el.nextElementSibling;
+    if(next) next.classList.add("wait");
+  },delay);
+}
+function markOk(id, offEl, offText){
+  const el=$("#"+id); if(!el) return;
+  el.classList.remove("wait"); el.classList.add("ok");
+  const ic=el.querySelector(".ic"); if(ic) ic.textContent="✓";
+  if(offEl && $("#"+offEl) && offText!=null) $("#"+offEl).textContent=offText;
+}
+function openHostSyncFromCoordinator(){
+  const s=currentSession();
+  $("#launch").style.display="flex";
+  $("#launch-role").style.display="none";
+  $("#launch-join").style.display="none";
+  $("#launch-host").style.display="block";
+  $("#host-title").textContent=s.name;
+  $("#host-file").textContent = s.name.toLowerCase().replaceAll(" ","_")+".csv";
+  $("#host-count").textContent = s.paddlers.length+" PADDLERS ✓";
+  $("#hk4n").textContent = s.paddlers.length;
+  ["hk1","hk2","hk3","hk4"].forEach(id=>{
+    const el=$("#"+id); el.classList.remove("ok","wait"); el.classList.add("show");
+    const ic=el.querySelector(".ic"); if(ic) ic.textContent=id.slice(-1);
+  });
+  $("#hk3off").textContent="…";
+  $("#host-code-wrap").style.display="none";
+  $("#host-code").textContent="····";
+  const btn=$("#host-btn"); btn.disabled=true; btn.textContent="Setting up…";
+
+  if(Sync.init()){
+    Sync.createSession(s).then(code=>{
+      if(!code){ return localOnlyHost(s); }
+      state.sessionCode = code;
+      $("#host-code").textContent = code;
+      $("#host-code-wrap").style.display="block";
+      markOk("hk3","hk3off","clock ready");
+      markOk("hk4", null, null);
+      btn.textContent="Waiting for phones to join…";
+      Sync.watchPresence(presence=>{
+        if(presence.start) markOk("hk1");
+        if(presence.finish) markOk("hk2");
+        const bothIn = presence.start && presence.finish;
+        btn.disabled = !bothIn;
+        btn.textContent = bothIn ? "All phones ready ✓" : "Waiting for phones to join…";
+      });
+    });
+  } else {
+    localOnlyHost(s);
+  }
+}
+function localOnlyHost(s){
+  $("#hk3off").textContent="local only";
+  step("hk1",700); step("hk2",1400); step("hk3",2100,"hk3off","local only"); step("hk4",2600);
+  const btn=$("#host-btn");
+  setTimeout(()=>{ btn.disabled=false; btn.textContent="Continue (no live sync)"; },2800);
+}
+function hostSync(){
+  const btn=$("#host-btn");
+  btn.disabled=true; btn.textContent="Starting…";
+  currentSession().status="active";
+  setTimeout(()=>{ $("#launch").style.display="none"; state.tab="start"; render(); updateHeader(); startLiveWatchers(); },300);
+}
+function joinSync(){
+  const code = ($("#join-code").value||"").trim();
+  const btn=$("#join-btn");
+  if(Sync.init() && code.length===4){
+    btn.disabled=true; btn.textContent="Joining…";
+    Sync.joinSession(code, state.role).then(ok=>{
+      if(!ok){
+        btn.disabled=false; btn.textContent="Join morning sync";
+        toast("Code not found — check with the coordinator");
+        return;
+      }
+      state.sessionCode = code;
+      markOk("jk1");
+      markOk("jk2","jk2off","clock ready");
+      Sync.watchRoster(roster=>{
+        const list = Object.values(roster||{});
+        if(!list.length) return;
+        const s = currentSession();
+        s.paddlers = list;
+        markOk("jk3","jk3n", list.length);
+        btn.textContent="Synced ✓";
+        setTimeout(()=>{ $("#launch").style.display="none"; render(); updateHeader(); startLiveWatchers(); }, 500);
+      });
+    });
+  } else {
+    /* no Firebase configured, or no code entered — local-only fallback */
+    btn.disabled=true; btn.textContent="Waiting for coordinator…";
+    $("#jk1").classList.add("wait");
+    step("jk1",900);
+    step("jk2",1700,"jk2off","local only");
+    step("jk3",2400,"jk3n", currentSession().paddlers.length);
+    setTimeout(()=>{ btn.textContent="Synced ✓ (no live sync)"; },2600);
+    setTimeout(enterApp,3400);
+  }
+}
+function enterApp(){ $("#launch").style.display="none"; render(); updateHeader(); }
+
+/* ---- live event watchers: keep every phone's local state in sync with the room ---- */
+let liveWatchersStarted=false;
+function startLiveWatchers(){
+  if(liveWatchersStarted || !Sync.code) return;
+  liveWatchersStarted = true;
+  Sync.onConnectionChange(online=>{ state.liveConnected=online; updateHeader(); });
+  Sync.watchEvents(events=>{
+    const s = currentSession(); if(!s) return;
+    let changed=false;
+    Object.values(events||{}).forEach(ev=>{
+      const p = s.paddlers.find(x=>x.id===ev.paddlerId); if(!p) return;
+      if(ev.type==="start" && p.status==="queued"){ p.status="water"; p.startTs=ev.ts; changed=true; }
+      if(ev.type==="finish" && p.status==="water"){
+        p.status="done"; p.finishTs=ev.ts; changed=true;
+        if(state.role==="finish") state.lastFinish={name:p.name, elapsed:p.finishTs-p.startTs};
+      }
+    });
+    if(changed) render();
+  });
+}
+
+/* ================= actions ================= */
+let toastTimer=null;
+function toast(msg){
+  $("#toast-root").innerHTML=`<div class="toast">${msg}</div>`;
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{$("#toast-root").innerHTML="";},2600);
+}
+const byId=(id)=>paddlersOf().find(p=>p.id===id);
+
+function armPaddler(id){ if(isReview()) return; state.armed = state.armed===id ? null : id; render(); }
+function startArmed(){
+  if(isReview()) return;
+  const p=byId(state.armed); if(!p) return;
+  p.status="water"; p.startTs=Date.now(); state.armed=null;
+  render(); toast("▶ "+esc(p.name)+" started · "+fmtClockMs(p.startTs));
+  if(state.sessionCode) Sync.pushStart(p.id, state.role);
+}
+function finishPaddler(id){
+  if(isReview()) return;
+  const p=byId(id); if(!p) return;
+  p.status="done"; p.finishTs=Date.now();
+  state.lastFinish = {name:p.name, elapsed:p.finishTs-p.startTs};
+  render(); toast("⏱ "+esc(p.name)+" — "+fmtElapsed(p.finishTs-p.startTs));
+  if(state.sessionCode) Sync.pushFinish(p.id, state.role);
+}
+function cancelRun(id){
+  if(isReview()) return;
+  const p=byId(id); if(!p) return;
+  if(!confirm("Cancel "+p.name+"'s start? This discards their recorded time.")) return;
+  p.status="queued"; p.startTs=null;
+  render(); toast(esc(p.name)+" returned to queue");
+  if(state.sessionCode) Sync.pushCancelStart(p.id);
+}
+function redoRun(id){
+  if(isReview()) return;
+  const p=byId(id); p.status="queued"; p.startTs=null; p.finishTs=null;
+  render(); toast(esc(p.name)+" reset for re-run");
+  if(state.sessionCode){ Sync.pushCancelStart(p.id); Sync.pushCancelFinish(p.id); }
+}
+function setFilter(f){ state.filter=f; render(); }
+function setTab(t){ state.tab=t; render(); }
+
+/* ================= header ================= */
+function updateHeader(){
+  const roleLabel = state.role==="coordinator" ? "Coordinator" : state.role==="start" ? "Start line phone" : "Finish line phone";
+  $("#hdr-role").textContent = roleLabel;
+  const s = currentSession();
+  const synced = s && s.status!=="draft";
+  const dot=$("#hdr-dot");
+  const live = !!state.sessionCode;
+  const offline = live && !state.liveConnected;
+  dot.classList.toggle("warn", (!synced && !isReview()) || offline);
+  $("#hdr-sync").textContent = isReview() ? "Reviewing "+fmtDate(s.date)
+    : !synced ? "Not synced yet"
+    : !live ? "Local only · tap to see why"
+    : offline ? "Recording locally · will sync"
+    : "Live sync · session " + state.sessionCode;
+  $("#review-strip").style.display = isReview() ? "flex" : "none";
+  $("#sync-tap").style.display = (synced && !isReview()) ? "flex" : "none";
+}
+function demoToggleConn(){
+  if(state.sessionCode){
+    toast(state.liveConnected
+      ? "Connected — starts and finishes are syncing live between phones."
+      : "No connection right now — times are still recording locally and will sync once it's back.");
+    return;
+  }
+  toast("Running local-only (no Firebase project configured yet) — each phone times independently, same as before live sync existed.");
+}
+function exitReview(){ state.reviewSessionId=null; state.tab="session"; render(); updateHeader(); }
+
+/* ================= renderers ================= */
+function render(){ renderBody(); renderNav(); }
+
+function renderNav(){
+  const onWater = paddlersOf().filter(p=>p.status==="water").length;
+  const tabs=[
+    ["session","cal","Session"],
+    ["roster","users","Roster"],
+    ["start","play","Start"],
+    ["finish","flag","Finish"],
+    ["results","list","Results"],
+  ];
+  $("#nav").innerHTML=tabs.map(([key,ic,lbl])=>`
+    <button class="${state.tab===key?"on":""}" onclick="setTab('${key}')">
+      ${icon(ic,22,state.tab===key?2.4:2)}
+      <div class="nlbl">${lbl}</div>
+      ${key==="finish"&&onWater?`<span class="badge">${onWater}</span>`:""}
+    </button>`).join("");
+}
+
+function renderBody(){
+  const b=$("#body");
+  if(state.tab==="session") b.innerHTML=viewSession();
+  else if(state.tab==="roster") b.innerHTML=viewRoster();
+  else if(state.tab==="start") b.innerHTML=viewStart();
+  else if(state.tab==="finish") b.innerHTML=viewFinish();
+  else b.innerHTML=viewResults();
+}
+
+/* ---- shift-change interleaving ---- */
+/* Given a list of paddlers in schedule order, and the session's shifts,
+   return an interleaved array of {kind:"paddler", data} and {kind:"shift", data}.
+   A shift-change marker appears BEFORE the first paddler at or after its startsAt time,
+   skipping the very first shift entry per role (that's the "opening" crew). */
+function interleaveShifts(list){
+  const shifts = shiftsOf() || {};
+  const changes = []; // {mins, role, from, to}
+  Object.entries(shifts).forEach(([role, arr])=>{
+    for(let i=1;i<arr.length;i++){
+      changes.push({
+        mins: minutesFromSched(arr[i].startsAt),
+        time: arr[i].startsAt,
+        role, from: arr[i-1].names, to: arr[i].names,
+      });
+    }
+  });
+  changes.sort((a,b)=>a.mins-b.mins);
+  const out=[];
+  let ci=0;
+  list.forEach(p=>{
+    const pm = minutesFromSched(p.sched);
+    while(ci<changes.length && changes[ci].mins <= pm){
+      // group changes with same minute together
+      const group=[changes[ci]]; ci++;
+      while(ci<changes.length && changes[ci].mins===group[0].mins){ group.push(changes[ci]); ci++; }
+      out.push({kind:"shift", data:group});
+    }
+    out.push({kind:"paddler", data:p});
+  });
+  // trailing changes (after everyone)
+  while(ci<changes.length){
+    const group=[changes[ci]]; ci++;
+    while(ci<changes.length && changes[ci].mins===group[0].mins){ group.push(changes[ci]); ci++; }
+    out.push({kind:"shift", data:group});
+  }
+  return out;
+}
+function shiftMarkerHTML(group){
+  const time = group[0].time;
+  const linesHTML = group.map(g=>{
+    const removed = g.from.filter(n=>!g.to.includes(n));
+    const added   = g.to.filter(n=>!g.from.includes(n));
+    let swap;
+    if(removed.length && added.length){
+      swap = `<span class="swap">${removed.map(esc).join(", ")}</span><span class="arw">→</span><span class="swap">${added.map(esc).join(", ")}</span>`;
+    } else if(added.length){
+      swap = `<span class="swap">+ ${added.map(esc).join(", ")}</span>`;
+    } else if(removed.length){
+      swap = `<span class="swap">− ${removed.map(esc).join(", ")}</span>`;
+    } else {
+      swap = `<span class="swap">${g.to.map(esc).join(", ")}</span>`;
+    }
+    return `<div><span class="role">${esc(g.role)}</span> · ${swap}</div>`;
+  }).join("");
+  return `<div class="shift">
+    <div class="shift-head"><span class="glyph">${icon("swap",12,2.5)}</span><span class="t">${esc(time)} · Volunteer change</span></div>
+    <div class="shift-body">${linesHTML}</div>
+  </div>`;
+}
+function paddlerRosterRowHTML(p){
+  const readonly = isReview() ? "" : `onclick="openEdit(${p.id})"`;
+  return `<button class="row" ${readonly}>
+    <div class="sched">${p.sched||"—"}</div>
+    <div class="grow"><div class="nm">${esc(p.name)}</div>${p.notes?`<div class="note">〜 ${esc(p.notes)}</div>`:""}</div>
+    ${chips(p)}
+  </button>`;
+}
+
+/* ---- SESSION tab: coordinator's home ---- */
+function viewSession(){
+  const s=currentSession();
+  const today = state.sessions.find(x=>x.id==="today");
+  const others = state.sessions.filter(x=>x.id!==today.id);
+  const done = paddlersOf().filter(p=>p.status==="done").length;
+  const onWater = paddlersOf().filter(p=>p.status==="water").length;
+  const total = paddlersOf().length;
+
+  const heroActions = isReview()
+    ? `<button class="btn-ghost" onclick="exitReview()">${icon("chev",14)} Back to today</button>
+       <button class="btn-ghost" onclick="openExport()">${icon("download",14)} Export CSV</button>`
+    : today.status==="draft"
+      ? `<button class="btn-ghost" onclick="openHostSyncFromCoordinator()">Run morning sync</button>
+         <button class="btn-ghost" onclick="openShiftsEditor()">Volunteer shifts</button>`
+      : `<button class="btn-ghost" onclick="openExport()">${icon("download",14)} Export CSV</button>
+         <button class="btn-ghost" onclick="openShiftsEditor()">Volunteer shifts</button>`;
+
+  const statusText = isReview()
+    ? "Complete · viewing archive"
+    : today.status==="draft" ? "Needs morning sync"
+    : today.status==="active" ? `${done} of ${total} finished`
+    : "Complete";
+
+  const liveStrip = (!isReview() && today.status==="active") ? `
+    <div style="display:flex;gap:0;margin-top:12px;border-top:1px solid rgba(255,255,255,.25);padding-top:12px">
+      <div style="flex:1;text-align:center">
+        <div style="font-family:var(--cond);font-weight:700;font-size:22px">${onWater}</div>
+        <div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;display:flex;align-items:center;justify-content:center;gap:5px">
+          <span style="width:6px;height:6px;border-radius:99px;background:#3FD16B;animation:pulse 2s infinite;display:inline-block"></span>On the water
+        </div>
+      </div>
+      <div style="flex:1;text-align:center;border-left:1px solid rgba(255,255,255,.25)">
+        <div style="font-family:var(--cond);font-weight:700;font-size:22px">${done}/${total}</div>
+        <div style="font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;opacity:.75">Finished</div>
+      </div>
+    </div>` : "";
+
+  return `<div class="pad">
+    <div class="sess-card hero">
+      <div class="k label" style="color:rgba(255,255,255,.7)">${isReview()?"Reviewing":"Current session"}</div>
+      <div class="sess-name">${esc(s.name)}</div>
+      <div class="sess-meta">${fmtDateFull(s.date)} · ${esc(s.distance)} · ${statusText}</div>
+      <div class="sess-actions">${heroActions}</div>
+      ${liveStrip}
+    </div>
+
+    ${isReview()?"":`<div class="label" style="margin:6px 2px 8px">Past sessions</div>
+    <div class="list" style="margin-bottom:12px">
+      ${others.map(o=>`
+        <button class="sess-row" onclick="openReview('${o.id}')">
+          <div class="dt">${fmtDate(o.date)}</div>
+          <div class="grow">
+            <div class="name">${esc(o.name)}</div>
+            <div class="sub">${o.paddlers.length} paddlers · ${o.status==="complete"?"complete":"draft"}</div>
+          </div>
+          <div class="chev">${icon("chev",16)}</div>
+        </button>`).join("")}
+    </div>
+    <button class="btn-solid" onclick="openNewSession()">${icon("plus",16)} New test session</button>`}
+  </div>`;
+}
+
+/* ---- ROSTER tab ---- */
+function viewRoster(){
+  const q=state.qRoster.toLowerCase();
+  const list = paddlersOf().filter(p=>p.name.toLowerCase().includes(q))
+    .sort((a,b)=>(minutesFromSched(a.sched)||0)-(minutesFromSched(b.sched)||0));
+  const items = interleaveShifts(list);
+  const readonly = isReview();
+  return `<div class="pad">
+    ${readonly?"":`<div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn-ghost" onclick="openImport()">${icon("upload",15)} Import CSV</button>
+      <button class="btn-ghost" style="background:var(--teal);color:#fff;border-color:var(--teal)" onclick="openEdit(null)">${icon("plus",15)} Add paddler</button>
+    </div>`}
+    ${searchBox("qRoster","Search roster…")}
+    <div class="label" style="margin:14px 2px 6px">${list.length} paddlers · ${readonly?"read-only":"tap to edit · shift changes shown inline"}</div>
+    <div class="list">
+      ${items.map(it => it.kind==="shift" ? shiftMarkerHTML(it.data) : paddlerRosterRowHTML(it.data)).join("")
+        || `<div class="empty">No one matches. ${readonly?"":"Add them with the button above."}</div>`}
+    </div>
+  </div>`;
+}
+
+/* ---- START LINE tab ---- */
+function viewStart(){
+  const q=state.qStart.toLowerCase();
+  const queued = paddlersOf().filter(p=>p.status==="queued"&&p.name.toLowerCase().includes(q))
+    .sort((a,b)=>(minutesFromSched(a.sched)||0)-(minutesFromSched(b.sched)||0));
+  const onWater = paddlersOf().filter(p=>p.status==="water").length;
+  const sel = byId(state.armed);
+  const selOk = sel && sel.status==="queued" && !isReview();
+  const items = interleaveShifts(queued);
+  const rows = items.map(it=>{
+    if(it.kind==="shift") return shiftMarkerHTML(it.data);
+    const p=it.data;
+    const armed = state.armed===p.id;
+    return `<button class="row ${armed?"armed":""}" onclick="armPaddler(${p.id})">
+      <div class="sched">${p.sched||"—"}</div>
+      <div class="grow"><div class="nm">${esc(p.name)}</div></div>
+      ${chips(p)}
+    </button>`;
+  }).join("") || `<div class="empty">Queue is clear.</div>`;
+  return `<div class="pad" style="padding-bottom:150px">
+    ${searchBox("qStart","Find paddler at the line…")}
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin:14px 2px 6px">
+      <div class="label">Up next · scheduled order</div>
+      <div class="label" style="color:var(--teal)">${onWater} on the water</div>
+    </div>
+    <div class="list">${rows}</div>
+    <div class="slabwrap">
+      <button class="slab ${selOk?"on":""}" ${selOk?"":"disabled"} onclick="startArmed()">
+        <div class="k">${selOk?"Tap to start":"Select a paddler above"}</div>
+        <div style="margin-top:2px"><span class="n">${selOk?esc(sel.name):"—"}</span>${selOk?`<span class="t" id="slab-clock">${fmtClock(Date.now())}</span>`:""}</div>
+      </button>
+    </div>
+  </div>`;
+}
+
+/* ---- FINISH LINE tab ---- */
+function viewFinish(){
+  const onWater = paddlersOf().filter(p=>p.status==="water");
+  const offline = !state.sessionCode || !state.liveConnected;
+  const q = state.qFinish||"";
+  const modeBanner = offline
+    ? `<div style="display:flex;align-items:center;gap:8px;background:#FFF6DB;border:1px solid #F2D77B;color:#6B5300;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;line-height:1.5">
+        <span style="width:7px;height:7px;border-radius:99px;background:#F2C13D;flex-shrink:0"></span>
+        Not receiving live starts right now. Search and tap paddlers as they cross — times still record to the millisecond and reconcile once synced.
+      </div>`
+    : `<div style="display:flex;align-items:center;gap:8px;background:#EAFBF0;border:1px solid #A9E8BE;color:#0F5C2E;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12.5px">
+        <span style="width:7px;height:7px;border-radius:99px;background:#3FD16B;flex-shrink:0"></span>
+        Live sync — starts appear here the instant they're tapped.
+      </div>`;
+
+  const flash = state.lastFinish ? `
+    <div style="background:var(--ink);color:#fff;border-radius:16px;padding:16px 18px;margin-bottom:14px">
+      <div style="font-family:var(--cond);font-size:11px;letter-spacing:.16em;text-transform:uppercase;opacity:.7">Just finished</div>
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:2px">
+        <div style="font-family:var(--cond);font-weight:700;font-size:19px">${esc(state.lastFinish.name)}</div>
+        <div style="font-family:var(--mono);font-weight:600;font-size:32px;color:var(--orange)">${fmtElapsed(state.lastFinish.elapsed)}</div>
+      </div>
+    </div>` : "";
+
+  const onWaterHTML = onWater.length ? `
+    <div class="label" style="margin:0 2px 8px">${onWater.length} on the water · tap flag to record finish</div>
+    ${onWater.map(p=>`
+      <div class="wcard">
+        <button class="cancel-x" title="Cancel this start" onclick="cancelRun(${p.id})">${icon("x",15,2)}</button>
+        <div style="display:flex;align-items:center;gap:8px;padding-right:24px">
+          <div class="grow" style="font-weight:600;font-size:16px;color:var(--ink)">${esc(p.name)}</div>
+          ${chips(p)}
+        </div>
+        <div class="wclock" data-run="${p.startTs}">${fmtElapsed(Date.now()-p.startTs)}</div>
+        <button class="btn-finish" onclick="finishPaddler(${p.id})">${icon("flag",18)} Finish</button>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-align:center;margin-top:8px">started ${fmtClockMs(p.startTs)}</div>
+      </div>`).join("")}`
+    : `<div class="empty" style="padding:18px 4px 22px">Nobody showing as on the water yet.${offline?" Use search below to tap paddlers manually.":""}</div>`;
+
+  const fallback = offline ? `
+    <div class="label" style="margin:16px 2px 6px">All paddlers · tap as they cross</div>
+    ${searchBox("qFinish","Find paddler at the buoy…")}
+    <div class="list" style="margin-top:10px">
+      ${paddlersOf().filter(p=>p.status!=="done" && p.name.toLowerCase().includes(q.toLowerCase())).map(p=>`
+        <button class="row" onclick="finishPaddler(${p.id})">
+          <div class="sched">${p.sched||"—"}</div>
+          <div class="grow"><div class="nm">${esc(p.name)}</div></div>
+          ${chips(p)}
+        </button>`).join("") || `<div class="empty">No matches.</div>`}
+    </div>` : "";
+
+  return `<div class="pad">${modeBanner}${flash}${onWaterHTML}${fallback}</div>`;
+}
+
+/* ---- RESULTS tab ---- */
+function viewResults(){
+  const done = paddlersOf().filter(p=>p.status==="done").sort((a,b)=>(a.finishTs-a.startTs)-(b.finishTs-b.startTs));
+  const f = state.filter;
+  const list = done.filter(p => f==="All" ? true : (f==="M"||f==="F") ? p.gender===f : p.team===f);
+  return `<div class="pad">
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+      ${["All","Masters","Performance","M","F"].map(x=>`<button class="fchip ${f===x?"on":""}" onclick="setFilter('${x}')">${x}</button>`).join("")}
+      <button class="btn-ghost" style="margin-left:auto;padding:7px 12px" onclick="openExport()">${icon("download",14)} CSV</button>
+    </div>
+    <div class="list">
+      ${list.map((p,i)=>`
+        <div class="row" style="cursor:default">
+          <div class="rank ${i<3?"top":""}">${i+1}</div>
+          <button class="grow" style="background:none;border:none;text-align:left;padding:0" ${isReview()?"":`onclick="openEdit(${p.id})"`}>
+            <div style="display:flex;align-items:center;gap:6px"><span class="nm">${esc(p.name)}</span>${chips(p)}</div>
+            <div class="note">〜 ${p.notes?esc(p.notes):(isReview()?"":"Add a note…")}</div>
+          </button>
+          <div style="text-align:right">
+            <div class="rtime">${fmtElapsed(p.finishTs-p.startTs)}</div>
+            ${isReview()?"":`<button class="rerun" onclick="redoRun(${p.id})">↺ re-run</button>`}
+          </div>
+        </div>`).join("") || `<div class="empty">No finishes yet.</div>`}
+    </div>
+  </div>`;
+}
+
+/* ---- shared: search that re-renders only the list ---- */
+function searchBox(key,ph){
+  return `<div class="searchbox">
+    ${icon("search",17)}
+    <input value="${esc(state[key])}" placeholder="${ph}" oninput="onSearch('${key}',this.value)">
+    ${state[key]?`<button class="clr" onclick="clearSearch('${key}')">${icon("x",16)}</button>`:""}
+  </div>`;
+}
+function onSearch(key,val){
+  state[key]=val;
+  const b=$("#body"), pos=val.length;
+  renderBody();
+  const inp=b.querySelector(".searchbox input");
+  if(inp){ inp.focus(); inp.setSelectionRange(pos,pos); }
+}
+function clearSearch(key){ state[key]=""; render(); }
+
+/* ================= sheets ================= */
+let editId=null;
+function openEdit(id){
+  editId=id;
+  const p = id ? byId(id) : {name:"",gender:"M",team:"Performance",notes:"",sched:""};
+  $("#sheet-root").innerHTML=`
+    <div class="overlay">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet">
+        <div class="sheet-h"><div class="sheet-t">${id?"Edit paddler":"Add paddler"}</div>
+          <button class="x" onclick="closeSheet()">${icon("x",17)}</button></div>
+        <div class="label" style="margin-bottom:6px">Scheduled time · optional</div>
+        <input class="field" id="f-sched" value="${esc(p.sched||"")}" placeholder="e.g. 9:15">
+        <div class="label" style="margin-bottom:6px">Name</div>
+        <input class="field" id="f-name" value="${esc(p.name)}" placeholder="Paddler name">
+        <div class="label" style="margin-bottom:6px">Gender</div>
+        <div class="seg" id="f-gender">
+          <button class="${p.gender==="M"?"on":""}" onclick="segSet('f-gender',this)" data-v="M">M</button>
+          <button class="${p.gender==="F"?"on":""}" onclick="segSet('f-gender',this)" data-v="F">F</button>
+        </div>
+        <div class="label" style="margin-bottom:6px">Team</div>
+        <div class="seg" id="f-team">
+          <button class="${p.team==="Masters"?"on":""}" onclick="segSet('f-team',this)" data-v="Masters">Masters</button>
+          <button class="${p.team==="Performance"?"on":""}" onclick="segSet('f-team',this)" data-v="Performance">Performance</button>
+        </div>
+        <div class="label" style="margin-bottom:6px">Notes · wind, huli, gear…</div>
+        <textarea class="field" id="f-notes" rows="3" placeholder="e.g. Strong headwind on second half">${esc(p.notes)}</textarea>
+        <button class="btn-solid" onclick="saveEdit()">${id?"Save changes":"Add to roster"}</button>
+      </div>
+    </div>`;
+  if(!id) $("#f-name").focus();
+}
+function segSet(segId,btn){
+  document.querySelectorAll("#"+segId+" button").forEach(b=>b.classList.remove("on"));
+  btn.classList.add("on");
+}
+function segVal(segId){ return document.querySelector("#"+segId+" button.on").dataset.v; }
+function saveEdit(){
+  const name=$("#f-name").value.trim(); if(!name){ $("#f-name").focus(); return; }
+  const data={sched:$("#f-sched").value.trim(),name,gender:segVal("f-gender"),team:segVal("f-team"),notes:$("#f-notes").value.trim()};
+  if(editId){ Object.assign(byId(editId),data); toast("Saved"); }
+  else { paddlersOf().push({id:nid(),status:"queued",startTs:null,finishTs:null,...data}); toast(esc(name)+" added to roster"); }
+  closeSheet(); render();
+}
+function closeSheet(){ $("#sheet-root").innerHTML=""; }
+
+function openImport(){
+  $("#sheet-root").innerHTML=`
+    <div class="overlay">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet">
+        <div class="sheet-h"><div class="sheet-t">Import roster</div>
+          <button class="x" onclick="closeSheet()">${icon("x",17)}</button></div>
+        <div style="border:2px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;margin-bottom:14px;background:var(--paper)">
+          <div style="color:var(--teal);margin-bottom:8px">${icon("upload",26)}</div>
+          <div style="font-weight:600;font-size:15px;color:var(--ink)">Drop a CSV or choose a file</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">Columns: Scheduled time, Name, M/F, Team, Notes</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--teal-soft);border-radius:10px;padding:11px 13px;margin-bottom:16px">
+          <div style="font-family:var(--mono);font-size:12.5px;color:var(--teal);flex:1">roster.csv</div>
+          <div style="font-family:var(--cond);font-weight:700;font-size:12px;color:var(--teal);letter-spacing:.08em">24 ROWS</div>
+        </div>
+        <button class="btn-solid" onclick="closeSheet();toast('Roster imported')">Import roster</button>
+      </div>
+    </div>`;
+}
+
+/* ---- New Session sheet ---- */
+function openNewSession(){
+  const today = new Date();
+  const iso = today.getFullYear()+"-"+pad(today.getMonth()+1)+"-"+pad(today.getDate());
+  const suggested = "OC Test "+ fmtDate(iso)+" "+ today.getFullYear();
+  $("#sheet-root").innerHTML=`
+    <div class="overlay">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet">
+        <div class="sheet-h"><div class="sheet-t">New test session</div>
+          <button class="x" onclick="closeSheet()">${icon("x",17)}</button></div>
+        <div class="label" style="margin-bottom:6px">Session name</div>
+        <input class="field" id="ns-name" value="${esc(suggested)}">
+        <div class="label" style="margin-bottom:6px">Date</div>
+        <input class="field" id="ns-date" type="date" value="${iso}">
+        <div class="label" style="margin-bottom:6px">Distance</div>
+        <input class="field" id="ns-dist" value="330 m">
+        <div class="label" style="margin-bottom:6px">Roster</div>
+        <button class="btn-ghost" style="width:100%;justify-content:center;margin-bottom:14px" onclick="toast('Would open file picker')">${icon("upload",15)} Import CSV or add manually</button>
+        <button class="btn-solid" onclick="createSession()">Create session</button>
+        <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:10px;line-height:1.5">You'll set volunteer shifts and run the morning sync next.</div>
+      </div>
+    </div>`;
+}
+function createSession(){
+  const name=$("#ns-name").value.trim(), date=$("#ns-date").value, dist=$("#ns-dist").value.trim();
+  if(!name) return;
+  // For prototype: just show a toast and close
+  closeSheet();
+  toast("Session created · set shifts next");
+  setTimeout(openShiftsEditor,300);
+}
+
+/* ---- Shifts editor sheet ---- */
+function openShiftsEditor(){
+  const shifts = shiftsOf();
+  const roles = ["Start line","Finish line","Video","Marshall"];
+  const body = roles.map(role=>{
+    const arr = shifts[role] || [];
+    return `<div class="role-block">
+      <div class="rl-h">${esc(role)}</div>
+      ${arr.map((sh,i)=>`
+        <div class="sh-row">
+          <div class="t">${esc(sh.startsAt)}</div>
+          <div class="nm">${esc(sh.names.join(", "))}</div>
+          <button class="rm" title="remove" onclick="removeShift('${esc(role)}',${i})">${icon("x",14)}</button>
+        </div>`).join("")}
+      <button class="addsh" onclick="addShiftPrompt('${esc(role)}')">${icon("plus",13)} Add shift change</button>
+    </div>`;
+  }).join("");
+  $("#sheet-root").innerHTML=`
+    <div class="overlay">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet shift-editor">
+        <div class="sheet-h"><div class="sheet-t">Volunteer shifts</div>
+          <button class="x" onclick="closeSheet()">${icon("x",17)}</button></div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:12px;line-height:1.5">Each role's schedule. The first entry is who starts; add a shift change to swap crew at a specific time. Shifts show up as inline markers in the roster and start-line queue.</div>
+        ${body}
+        <button class="btn-solid" style="margin-top:8px" onclick="closeSheet();toast('Shifts saved')">Save shifts</button>
+      </div>
+    </div>`;
+}
+function addShiftPrompt(role){
+  const t = prompt("Shift change time (e.g. 9:10):"); if(!t) return;
+  const names = prompt("Names on shift, comma-separated (e.g. Gordon, Sarah):"); if(!names) return;
+  const arr = shiftsOf()[role] = shiftsOf()[role] || [];
+  arr.push({startsAt:t.trim(), names:names.split(",").map(s=>s.trim()).filter(Boolean)});
+  arr.sort((a,b)=>minutesFromSched(a.startsAt)-minutesFromSched(b.startsAt));
+  openShiftsEditor();
+}
+function removeShift(role,i){
+  shiftsOf()[role].splice(i,1);
+  openShiftsEditor();
+}
+
+/* ---- Review a past session ---- */
+function openReview(id){
+  state.reviewSessionId=id;
+  state.tab="session";
+  render(); updateHeader();
+}
+
+/* ---- CSV export preview ---- */
+function buildCSV(){
+  const s = currentSession();
+  const rows = [];
+  rows.push(["# Water Vipers OC Timer"]);
+  rows.push(["# Session", s.name]);
+  rows.push(["# Date", s.date]);
+  rows.push(["# Distance", s.distance]);
+  rows.push([]);
+  rows.push(["Sched Time","Name","Gender","Team","Start Timestamp","Finish Timestamp","Elapsed (m:ss.ms)","Notes","Start line crew","Finish line crew","Video","Marshall"]);
+  const crewAt = (role, sched)=>{
+    const arr = (s.shifts||{})[role] || [];
+    const mins = minutesFromSched(sched);
+    let cur = arr[0]?.names || [];
+    for(const sh of arr){ if(minutesFromSched(sh.startsAt) <= mins) cur = sh.names; }
+    return cur.join("; ");
+  };
+  s.paddlers
+    .slice()
+    .sort((a,b)=>(minutesFromSched(a.sched)||0)-(minutesFromSched(b.sched)||0))
+    .forEach(p=>{
+      rows.push([
+        p.sched||"",
+        p.name,
+        p.gender,
+        p.team,
+        p.startTs ? fmtClockMs(p.startTs) : "",
+        p.finishTs ? fmtClockMs(p.finishTs) : "",
+        (p.startTs && p.finishTs) ? fmtElapsed(p.finishTs-p.startTs) : "",
+        p.notes||"",
+        crewAt("Start line",p.sched),
+        crewAt("Finish line",p.sched),
+        crewAt("Video",p.sched),
+        crewAt("Marshall",p.sched),
+      ]);
+    });
+  return rows.map(r=>r.map(cell=>{
+    const v=String(cell??"");
+    return /[",\n]/.test(v) ? `"${v.replaceAll('"','""')}"` : v;
+  }).join(",")).join("\n");
+}
+function openExport(){
+  const s = currentSession();
+  const csv = buildCSV();
+  const filename = s.name.toLowerCase().replaceAll(" ","_")+".csv";
+  const preview = csv.split("\n").slice(0,12).join("\n") + (csv.split("\n").length>12 ? "\n… ("+(csv.split("\n").length-12)+" more rows)":"");
+  $("#sheet-root").innerHTML=`
+    <div class="overlay">
+      <div class="scrim" onclick="closeSheet()"></div>
+      <div class="sheet">
+        <div class="sheet-h"><div class="sheet-t">Export CSV</div>
+          <button class="x" onclick="closeSheet()">${icon("x",17)}</button></div>
+        <div style="display:flex;align-items:center;gap:10px;background:var(--teal-soft);border-radius:10px;padding:11px 13px;margin-bottom:12px">
+          <div style="font-family:var(--mono);font-size:12.5px;color:var(--teal);flex:1">${esc(filename)}</div>
+          <div style="font-family:var(--cond);font-weight:700;font-size:12px;color:var(--teal);letter-spacing:.08em">${csv.split("\n").length-6} PADDLERS</div>
+        </div>
+        <div class="label" style="margin-bottom:6px">Preview</div>
+        <div class="csv-preview">${esc(preview)}</div>
+        <button class="btn-solid" onclick="downloadCSV()">${icon("download",16)} Save file</button>
+        <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:10px;line-height:1.5">Opens in Excel, Google Sheets, or Numbers. Volunteer shifts are attached per row so you can see who was on duty for every run.</div>
+      </div>
+    </div>`;
+}
+function downloadCSV(){
+  const s=currentSession();
+  const csv = buildCSV();
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = s.name.toLowerCase().replaceAll(" ","_")+".csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  closeSheet();
+  toast("Saved");
+}
+
+/* ================= clocks ================= */
+setInterval(()=>{
+  const now=Date.now();
+  const hdr=$("#hdr-clock"); if(hdr) hdr.textContent=fmtClock(now);
+  const sc=$("#sync-clock"); if(sc) sc.textContent=fmtClockMs(now);
+  const slab=$("#slab-clock"); if(slab) slab.textContent=fmtClock(now);
+  document.querySelectorAll("[data-run]").forEach(el=>{
+    const ts=Number(el.dataset.run); if(!ts) return;
+    el.textContent=fmtElapsed(now-ts);
+  });
+},43);
+
+/* boot: launch overlay is shown; role picker is default */
+updateHeader();
+render();
+
+/* PWA: register the service worker so the app installs to the home screen
+   and runs offline once loaded. Silent no-op when opened as a plain file. */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
