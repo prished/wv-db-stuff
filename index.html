@@ -760,7 +760,7 @@ function renderNav(){
   ];
   const allowed = {
     coordinator: ["session","roster","results"],
-    start: ["start","results"],
+    start: ["roster","start","results"],
     finish: ["finish","results"],
   }[state.role] || allTabs.map(t=>t[0]);
   const tabs = allTabs.filter(([key])=>allowed.includes(key));
