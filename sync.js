@@ -207,7 +207,7 @@ const Sync = (() => {
     get code() { return sessionCode; },
     get isConnected() { return connected; },
     get isReady() { return ready; },
-    onConnectionChange(cb) { listeners.connection = cb; },
+    onConnectionChange(cb) { listeners.connection = cb; cb(connected); },
     now
   };
 })();
